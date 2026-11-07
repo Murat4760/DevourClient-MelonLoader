@@ -8,20 +8,23 @@ This is a fork of [ALittlePatate/DevourClient](https://github.com/ALittlePatate/
 - `build.bat` and a `DevourPath` MSBuild property, so the project builds against any Devour install.
 - It adds extra perks, a chase speed boost, an Azazel stagger counter, an EXP multiplier, and other quality-of-life options.
 
-## Build
-Requirements: the .NET 6 SDK, plus MelonLoader v0.6.4 installed in DEVOUR. Launch the game once so it generates `MelonLoader\Il2CppAssemblies`.
+## Install (one click)
+1. Click **Code → Download ZIP** on this page.
+2. Right-click the ZIP and choose **Extract All**.
+3. Close DEVOUR, then double-click **`build.bat`** in the extracted folder.
 
-```bat
-build.bat
-```
+That's all. `build.bat` handles the rest:
+- Finds DEVOUR through Steam, in any library or on any drive. If it can't find the game, it asks you for the folder.
+- Installs the .NET 6 SDK into the project folder if you don't have one. This happens once, takes about 200 MB, and doesn't need admin.
+- Installs **MelonLoader v0.6.4** into DEVOUR, or switches it back on if it was turned off (`version.dll.off`).
+- On the very first run, starts DEVOUR once so MelonLoader can prepare the game files (about 2–10 minutes), then closes the game.
+- Builds `DevourClient.dll` and copies it into `DEVOUR\Mods`.
 
-If DEVOUR isn't in the default Steam folder, edit the path at the top of `build.bat`. Or build directly:
+When it says **All done**, start DEVOUR from Steam and press **INSERT** to open the menu. Unlimited UV Light is in the Visuals tab, and Auto Respawn is in the Misc tab.
 
-```bat
-dotnet build DevourClient\DevourClient.csproj -c Release -p:DevourPath="D:\SteamLibrary\steamapps\common\Devour"
-```
+Windows may show a "Windows protected your PC" warning for a downloaded `.bat`. Click **More info → Run anyway**.
 
-In game, press **INSERT** to open the menu.
+If DEVOUR is somewhere unusual, you can drag the DEVOUR folder onto `build.bat`, or run `build.bat "D:\path\to\Devour"`.
 
 Host-only features (spawning, map changes, Kill, Force Start) still need you to be the lobby owner. Please don't use the mod to ruin other people's games in public lobbies.
 

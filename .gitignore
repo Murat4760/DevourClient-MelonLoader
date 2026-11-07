@@ -11,3 +11,6 @@
 # Local-only files
 backup-before-friendlobby/
 HANDOFF.md
+
+# Local .NET SDK installed by build.bat
+.dotnet/
