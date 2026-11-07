@@ -1,0 +1,13 @@
+# Visual Studio / build output
+.vs/
+**/bin/
+**/obj/
+*.user
+
+# Game / MelonLoader binaries must never be committed
+*.dll
+*.pdb
+
+# Local-only files
+backup-before-friendlobby/
+HANDOFF.md
