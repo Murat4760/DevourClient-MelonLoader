@@ -76,6 +76,10 @@ namespace DevourClient
         static bool should_show_start_message = true;
         static Texture2D crosshairTexture = default!;
 
+        static Il2CppOpsive.UltimateCharacterController.Character.UltimateCharacterLocomotion cachedLoco = null!;
+        static int cachedLocoFor = 0;
+        static int lastLightMode = 0;
+
         private static int frameCount = 0;
         private static int lastMemoryLog = 0;
         private const int GC_GEN0_INTERVAL = 300;
@@ -96,20 +100,29 @@ namespace DevourClient
 
             Helpers.Entities.StartAllCoroutines();
 
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetLocalPlayer()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetGoatsAndRats()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetSurvivalInteractables()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetKeys()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetDemons()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetSpiders()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetGhosts()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetBoars()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetCorpses()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetCrows()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetLumps()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetAzazels()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetAllPlayers()));
-            Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.GetMonkeys()));
+            // All of these rescan the scene every 5 s. Started together they all hit the same frame and caused a
+            // hitch every 5 seconds, so each one is offset a little to spread the work across the 5 s window.
+            IEnumerator[] scanners =
+            {
+                Helpers.Entities.GetLocalPlayer(),
+                Helpers.Entities.GetAllPlayers(),
+                Helpers.Entities.GetAzazels(),
+                Helpers.Entities.GetKeys(),
+                Helpers.Entities.GetSurvivalInteractables(),
+                Helpers.Entities.GetGoatsAndRats(),
+                Helpers.Entities.GetDemons(),
+                Helpers.Entities.GetSpiders(),
+                Helpers.Entities.GetGhosts(),
+                Helpers.Entities.GetBoars(),
+                Helpers.Entities.GetCorpses(),
+                Helpers.Entities.GetCrows(),
+                Helpers.Entities.GetLumps(),
+                Helpers.Entities.GetMonkeys(),
+            };
+            for (int i = 0; i < scanners.Length; i++)
+            {
+                Helpers.Entities.RegisterCoroutine(MelonCoroutines.Start(Helpers.Entities.Staggered(i * 0.35f, scanners[i])));
+            }
         }
 
         public void Update()
@@ -164,30 +177,35 @@ namespace DevourClient
                 {
                     bool chased = Hacks.Misc.IsBeingChased(me);
                     float scale = chased ? chaseBoostMultiplier : (fastMove ? _PlayerSpeedMultiplier : 1f);
-                    var loco = me.GetComponent<Il2CppOpsive.UltimateCharacterController.Character.UltimateCharacterLocomotion>();
+                    if (cachedLoco == null || cachedLocoFor != me.GetInstanceID())
+                    {
+                        cachedLoco = me.GetComponent<Il2CppOpsive.UltimateCharacterController.Character.UltimateCharacterLocomotion>();
+                        cachedLocoFor = me.GetInstanceID();
+                    }
+                    var loco = cachedLoco;
                     if (loco != null && !Mathf.Approximately(loco.TimeScale, scale))
                     {
                         loco.TimeScale = scale;
                     }
                 }
 
-                if (flashlight_toggle && !fullbright)
+                // Flashlight: Big Flashlight / Fullbright are applied while on. When both are off the light is reset
+                // once when you switch them off, instead of being rewritten (type + shadows included) every frame.
+                int lightMode = (flashlight_toggle ? 1 : 0) | (fullbright ? 2 : 0);
+                if (lightMode == 1)
                 {
                     Hacks.Misc.BigFlashlight(false);
                 }
-                else if (!flashlight_toggle && !fullbright)
-                {
-                    Hacks.Misc.BigFlashlight(true);
-                }
-
-                if (fullbright && !flashlight_toggle)
+                else if (lightMode == 2)
                 {
                     Hacks.Misc.Fullbright(false);
                 }
-                else if (!fullbright && !flashlight_toggle)
+                else if (lightMode == 0 && lastLightMode != 0)
                 {
+                    Hacks.Misc.BigFlashlight(true);
                     Hacks.Misc.Fullbright(true);
                 }
+                lastLightMode = lightMode;
 
                 if (_IsAutoRespawn && Helpers.Player.IsPlayerDowned())
                 {
@@ -292,6 +310,30 @@ namespace DevourClient
             }
         }
 
+        static GUISkin styledSkin = null!;
+        static float nextSkinStyle = 0f;
+
+        static void StyleSkin()
+        {
+            GUI.skin.button.normal.background = GUIHelper.MakeTex(2, 2, Color.black);
+            GUI.skin.button.normal.textColor = Color.white;
+            GUI.skin.button.hover.background = GUIHelper.MakeTex(2, 2, Color.green);
+            GUI.skin.button.hover.textColor = Color.black;
+
+            GUI.skin.toggle.onNormal.textColor = Color.yellow;
+
+            GUI.skin.textField.normal.background = GUIHelper.MakeTex(2, 2, new Color(0.2f, 0.2f, 0.2f, 0.8f));
+            GUI.skin.textField.normal.textColor = Color.white;
+            GUI.skin.textField.focused.background = GUIHelper.MakeTex(2, 2, new Color(0.3f, 0.3f, 0.3f, 0.9f));
+            GUI.skin.textField.focused.textColor = Color.yellow;
+            GUI.skin.textField.border = new RectOffset(2, 2, 2, 2);
+
+            GUI.skin.label.normal.textColor = Color.white;
+
+            GUI.skin.horizontalSlider.normal.background = GUIHelper.MakeTex(2, 2, new Color(0.3f, 0.3f, 0.3f, 0.8f));
+            GUI.skin.horizontalSliderThumb.normal.background = GUIHelper.MakeTex(2, 2, Color.white);
+        }
+
         public void OnGUI()
         {
             if (should_show_start_message)
@@ -308,28 +350,14 @@ namespace DevourClient
             {
                 GUI.backgroundColor = Color.grey;
 
-                // 设置按钮样式
-                GUI.skin.button.normal.background = GUIHelper.MakeTex(2, 2, Color.black);
-                GUI.skin.button.normal.textColor = Color.white;
-                GUI.skin.button.hover.background = GUIHelper.MakeTex(2, 2, Color.green);
-                GUI.skin.button.hover.textColor = Color.black;
-
-                // 设置切换按钮样式
-                GUI.skin.toggle.onNormal.textColor = Color.yellow;
-
-                // 设置文本框样式 - 这是关键修复
-                GUI.skin.textField.normal.background = GUIHelper.MakeTex(2, 2, new Color(0.2f, 0.2f, 0.2f, 0.8f));
-                GUI.skin.textField.normal.textColor = Color.white;
-                GUI.skin.textField.focused.background = GUIHelper.MakeTex(2, 2, new Color(0.3f, 0.3f, 0.3f, 0.9f));
-                GUI.skin.textField.focused.textColor = Color.yellow;
-                GUI.skin.textField.border = new RectOffset(2, 2, 2, 2);
-
-                // 设置标签样式
-                GUI.skin.label.normal.textColor = Color.white;
-
-                // 设置滑块样式
-                GUI.skin.horizontalSlider.normal.background = GUIHelper.MakeTex(2, 2, new Color(0.3f, 0.3f, 0.3f, 0.8f));
-                GUI.skin.horizontalSliderThumb.normal.background = GUIHelper.MakeTex(2, 2, Color.white);
+                // The skin is shared and keeps its settings, so styling it on every OnGUI event (several per frame)
+                // was wasted work. Re-style only when the skin object changes, or once a second as a safety net.
+                if (!ReferenceEquals(GUI.skin, styledSkin) || Time.unscaledTime >= nextSkinStyle)
+                {
+                    styledSkin = GUI.skin;
+                    nextSkinStyle = Time.unscaledTime + 1f;
+                    StyleSkin();
+                }
 
             if (UnityEngine.Event.current.type == EventType.Repaint)
             {

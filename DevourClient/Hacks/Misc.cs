@@ -353,10 +353,22 @@ namespace DevourClient.Hacks
 		}
 
 		// "PERK_FIELD_MEDIC", "PerkFieldMedic" and "FieldMedic" all become "FIELDMEDIC".
+		// HasPerk is checked constantly by the game, so the normalized names are cached instead of rebuilt (and garbage-collected) every call.
+		private static readonly Dictionary<string, string> perkKeyCache = new Dictionary<string, string>();
+
 		public static string PerkKey(string perk)
 		{
+			if (perkKeyCache.TryGetValue(perk, out string? cached))
+			{
+				return cached;
+			}
 			string k = new string(perk.Where(char.IsLetter).ToArray()).ToUpperInvariant();
-			return k.StartsWith("PERK") ? k.Substring(4) : k;
+			k = k.StartsWith("PERK") ? k.Substring(4) : k;
+			if (perkKeyCache.Count < 512)
+			{
+				perkKeyCache[perk] = k;
+			}
+			return k;
 		}
 
 		public static void SetExtraPerk(string perkId, bool on)
@@ -539,16 +551,17 @@ namespace DevourClient.Hacks
 				flashlightSpot.intensity = 1.4f;
 				flashlightSpot.range = 9f;
 				flashlightSpot.spotAngle = 70f;
-				flashlightSpot.type = LightType.Spot;
-				flashlightSpot.shadows = LightShadows.Soft;
+				if (flashlightSpot.type != LightType.Spot) flashlightSpot.type = LightType.Spot;
+				if (flashlightSpot.shadows != LightShadows.Soft) flashlightSpot.shadows = LightShadows.Soft;
 			}
 			else
 			{
 				flashlightSpot.intensity = 1.1f;
 				flashlightSpot.range = 200f;
 				flashlightSpot.spotAngle = 179f;
-				flashlightSpot.type = LightType.Point;
-				flashlightSpot.shadows = LightShadows.None;
+				// Changing light type/shadows rebuilds lighting data; only do it when it actually differs (this runs every frame).
+				if (flashlightSpot.type != LightType.Point) flashlightSpot.type = LightType.Point;
+				if (flashlightSpot.shadows != LightShadows.None) flashlightSpot.shadows = LightShadows.None;
 			}
 
 		}

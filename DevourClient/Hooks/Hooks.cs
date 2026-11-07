@@ -170,16 +170,19 @@ namespace DevourClient.Hooks
                     return;
                 }
 
+                // Cheap name check first; the owner check crosses into the game's native code, so only do it for perks we add.
+                if (!ClientMain.extraPerks.Contains(Hacks.Misc.PerkKey(perk)))
+                {
+                    return;
+                }
+
                 Il2Cpp.NolanBehaviour nb = __instance.nolanBehaviour;
                 if (nb == null || nb.entity == null || !nb.entity.IsOwner)
                 {
                     return;
                 }
 
-                if (ClientMain.extraPerks.Contains(Hacks.Misc.PerkKey(perk)))
-                {
-                    __result = true;
-                }
+                __result = true;
             }
         }
 

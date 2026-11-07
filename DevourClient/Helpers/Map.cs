@@ -2,9 +2,19 @@
 {
     class Map
     {
+        private static int sceneFrame = -1;
+        private static string sceneName = "";
+
+        // Called from Update and every OnGUI event; the scene name is only fetched (and its string allocated) once per frame.
         public static string GetActiveScene()
         {
-            return UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            int frame = UnityEngine.Time.frameCount;
+            if (frame != sceneFrame)
+            {
+                sceneFrame = frame;
+                sceneName = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
+            }
+            return sceneName;
         }
 
         public static string GetMapName(string sceneName)

@@ -134,10 +134,31 @@ namespace DevourClient.Helpers
     }
     public class Player
     {
+        // IsInGame() is called many times per frame (Update + every OnGUI event). FindObjectOfType scans the whole
+        // scene, so the OptionsHelpers reference is cached (re-searched at most once a second when it's gone)
+        // and the answer is reused for the rest of the frame.
+        private static Il2Cpp.OptionsHelpers cachedOptions = null!;
+        private static float nextOptionsLookup = 0f;
+        private static int inGameFrame = -1;
+        private static bool inGameValue = false;
+
         public static bool IsInGame()
         {
-            Il2Cpp.OptionsHelpers optionsHelpers = UnityEngine.Object.FindObjectOfType<Il2Cpp.OptionsHelpers>();
-            return optionsHelpers.inGame;
+            int frame = Time.frameCount;
+            if (frame == inGameFrame)
+            {
+                return inGameValue;
+            }
+            inGameFrame = frame;
+
+            if (cachedOptions == null && Time.unscaledTime >= nextOptionsLookup)
+            {
+                cachedOptions = UnityEngine.Object.FindObjectOfType<Il2Cpp.OptionsHelpers>();
+                nextOptionsLookup = Time.unscaledTime + 1f;
+            }
+
+            inGameValue = cachedOptions != null && cachedOptions.inGame;
+            return inGameValue;
         }
 
         public static bool IsInGameOrLobby()
@@ -145,14 +166,25 @@ namespace DevourClient.Helpers
             return GetPlayer() != null;
         }
 
+        private static GameObject cachedPlayerGo = null!;
+        private static Il2Cpp.NolanBehaviour cachedPlayerNb = null!;
+
         public static Il2Cpp.NolanBehaviour GetPlayer()
         {
-            if (Entities.LocalPlayer_.p_GameObject == null)
+            GameObject go = Entities.LocalPlayer_.p_GameObject;
+            if (go == null)
             {
                 return null!;
             }
 
-            return Entities.LocalPlayer_.p_GameObject.GetComponent<Il2Cpp.NolanBehaviour>();
+            // GetComponent every call was adding up (GetPlayer runs many times per frame); only redo it when the player object changes.
+            if (!ReferenceEquals(go, cachedPlayerGo) || cachedPlayerNb == null)
+            {
+                cachedPlayerNb = go.GetComponent<Il2Cpp.NolanBehaviour>();
+                cachedPlayerGo = go;
+            }
+
+            return cachedPlayerNb;
         }
 
         public static bool IsPlayerCrawling()
@@ -421,6 +453,19 @@ namespace DevourClient.Helpers
         /// <summary>
         /// 启动所有协程
         /// </summary>
+        // Waits `delay` seconds, then runs `inner` as normal. Used to spread the 5 s scanners over different frames.
+        public static IEnumerator Staggered(float delay, IEnumerator inner)
+        {
+            if (delay > 0f)
+            {
+                yield return new WaitForSeconds(delay);
+            }
+            while (inner.MoveNext())
+            {
+                yield return inner.Current;
+            }
+        }
+
         public static void StartAllCoroutines()
         {
             isRunning = true;
