@@ -1,4 +1,4 @@
-# Shared by setup.ps1, uninstall.ps1 and check.ps1: locates the DEVOUR install folder.
+# Shared by setup.ps1 and uninstall.ps1: locates the DEVOUR install folder.
 function Test-DevourDir($dir) { return ($dir -and (Test-Path -LiteralPath (Join-Path $dir 'DEVOUR.exe'))) }
 
 function Find-Devour {

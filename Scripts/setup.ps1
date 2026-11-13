@@ -5,6 +5,7 @@
 #   3. installs MelonLoader v0.6.4 into DEVOUR if it is missing (or turns it back on if it was switched off)
 #   4. starts DEVOUR once so MelonLoader can generate the game files, then closes it
 #   5. builds DevourClient.dll and copies it into DEVOUR\Mods
+#   6. checks the install for errors and prints PASS or what to fix
 # Usage (optional): build.bat "D:\SteamLibrary\steamapps\common\Devour"
 param(
     [string]$DevourPath,
@@ -231,9 +232,39 @@ $built = Join-Path $Root 'DevourClient\bin\Release\net6.0\DevourClient.dll'
 Copy-Item -LiteralPath $built -Destination (Join-Path $Game 'Mods\DevourClient.dll') -Force
 Ok "Installed to $(Join-Path $Game 'Mods\DevourClient.dll')"
 
+# ---------------------------------------------------------------- 6. final error check
+Step 'Checking the install'
+$problems = 0
+function Check($ok, $good, $bad, $fix) {
+    if ($ok) { Ok $good; return }
+    $script:problems++
+    Write-Host "    [X] $bad" -ForegroundColor Red
+    Write-Host "        Fix: $fix"
+}
+$installed = Join-Path $Game 'Mods\DevourClient.dll'
+Check (Test-Path -LiteralPath $VersionDll) 'MelonLoader is switched on' 'version.dll is missing, MelonLoader will not start.' 'Run build.bat again. If it keeps disappearing, your antivirus is deleting it: add the DEVOUR folder as an exception.'
+Check ((Test-Path -LiteralPath $MLCore) -and ((Get-Item -LiteralPath $MLCore).VersionInfo.FileVersion -like '0.6.*')) 'MelonLoader version is 0.6.x' 'MelonLoader files are missing or the wrong version.' 'Run build.bat again.'
+Check (Test-Path -LiteralPath $AsmCSharp) 'Game files are prepared' 'MelonLoader game files are missing.' 'Run build.bat again.'
+Check ((Test-Path -LiteralPath $installed) -and ((Get-FileHash -LiteralPath $installed).Hash -eq (Get-FileHash -LiteralPath $built).Hash)) 'Mod DLL is installed and up to date' 'Mods\DevourClient.dll is missing or not the one just built.' 'Close DEVOUR and run build.bat again.'
+$dupes = @(Get-ChildItem -LiteralPath (Join-Path $Game 'Mods') -Filter 'DevourClient*.dll' | Where-Object { $_.Name -ne 'DevourClient.dll' })
+Check ($dupes.Count -eq 0) 'No duplicate copies of the mod' "Extra copies of the mod in Mods: $($dupes.Name -join ', ') (they conflict)." 'Delete those extra files.'
+Check ((Get-Content -LiteralPath $KeyFile -Raw).Trim() -eq $MenuKey) "Menu key saved: $MenuKey" 'The menu key was not saved.' 'Run build.bat again.'
+
+# Errors from the last time the game ran (only meaningful if the mod was already installed before)
+$log = Join-Path $MLDir 'Latest.log'
+if (Test-Path -LiteralPath $log) {
+    $errs = @(Get-Content -LiteralPath $log | Where-Object { $_ -match 'DevourClient' -and $_ -match 'ERROR|Exception|Failed' })
+    if ($errs.Count -gt 0) {
+        Write-Host "    [!] The last game start logged $($errs.Count) DevourClient error(s). If they happen again after this rebuild, screenshot them:" -ForegroundColor Yellow
+        $errs | Select-Object -Last 5 | ForEach-Object { Write-Host "        $_" -ForegroundColor DarkGray }
+        Write-Host "        Full log: $log"
+    }
+}
+
 Write-Host ''
+if ($problems -gt 0) { Fail "$problems problem(s) found, see the fixes above." }
+Write-Host 'PASS - everything checks out.' -ForegroundColor Green
 Write-Host "All done! Start DEVOUR from Steam and press $MenuKey to open the menu." -ForegroundColor Green
-Write-Host '  Something not working? Double-click check.bat for a diagnosis.'
 Write-Host '  Visuals tab: Unlimited UV Light    Misc tab: Auto Respawn'
 if ($Elevated) { Read-Host 'Press Enter to close' | Out-Null }
 exit 0

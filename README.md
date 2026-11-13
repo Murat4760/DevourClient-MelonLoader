@@ -27,13 +27,10 @@ Windows may show a "Windows protected your PC" warning for a downloaded `.bat`. 
 
 If DEVOUR is somewhere unusual, you can drag the DEVOUR folder onto `build.bat`, or run `build.bat "D:\path\to\Devour"`.
 
-## Something not working? (`check.bat`)
-Double-click **`check.bat`**. It changes nothing; it checks MelonLoader, the game files, the mod DLL, your menu key and the last game log, then tells you exactly what's wrong and how to fix it.
+At the end, `build.bat` checks the install itself (MelonLoader, game files, mod DLL, duplicate copies, menu key, errors from the last game start). It prints **PASS**, or tells you exactly what's wrong and how to fix it.
 
 ## Uninstall (`uninstall.bat`)
-Double-click **`uninstall.bat`**. It lists everything it will delete and only continues if you type `YES`. It removes:
-- From DEVOUR: `MelonLoader`, `Mods`, `Plugins`, `UserData`, `UserLibs`, `version.dll`, `version.dll.off`, `dobby.dll`, MelonLoader's `NOTICE.txt` and old `MelonLoader.backup-*` folders. **This also removes any other MelonLoader mods you had.**
-- From this folder: the local .NET SDK (`.dotnet`) and build output.
+Double-click **`uninstall.bat`**. It always removes DevourClient: the mod DLL, the menu key file, and the .NET SDK and build output in this folder. Then it asks **"Also remove MelonLoader? (Y/N)"**. Answering Y also deletes `MelonLoader`, `Mods`, `Plugins`, `UserData`, `UserLibs`, `version.dll` and `dobby.dll`, **which removes any other MelonLoader mods you had too**. Nothing is deleted until you type `YES` at the final list.
 
 Your game files and progress aren't touched. Afterwards you can delete this folder.
 

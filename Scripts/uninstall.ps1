@@ -1,5 +1,5 @@
 # DevourClient uninstaller. Run by uninstall.bat.
-# Removes DevourClient AND MelonLoader from DEVOUR, plus everything build.bat downloaded/built in this folder.
+# Removes DevourClient from DEVOUR plus what build.bat downloaded/built here, then asks whether to remove MelonLoader too.
 # Usage (optional): uninstall.bat "D:\SteamLibrary\steamapps\common\Devour"
 param(
     [string]$DevourPath,
@@ -41,32 +41,52 @@ try {
     exit $p.ExitCode
 }
 
-# Everything that gets removed. Game files (DEVOUR.exe, DEVOUR_Data, ...) are never touched.
-$targets = New-Object System.Collections.Generic.List[string]
-foreach ($n in 'MelonLoader', 'Mods', 'Plugins', 'UserData', 'UserLibs', 'version.dll', 'version.dll.off', 'dobby.dll') {
-    $targets.Add((Join-Path $Game $n))
-}
-Get-ChildItem -LiteralPath $Game -Directory -Filter 'MelonLoader.backup-*' -ErrorAction SilentlyContinue | ForEach-Object { $targets.Add($_.FullName) }
-$notice = Join-Path $Game 'NOTICE.txt'   # shipped by MelonLoader; only removed if it's MelonLoader's
-if ((Test-Path -LiteralPath $notice) -and ((Get-Content -LiteralPath $notice -Raw) -match 'MelonLoader')) { $targets.Add($notice) }
-foreach ($n in '.dotnet', 'DevourClient\bin', 'DevourClient\obj') { $targets.Add((Join-Path $Root $n)) }
-$targets.Add((Join-Path $env:TEMP 'dotnet-install.ps1'))
-$targets.Add((Join-Path $env:TEMP 'MelonLoader.x64.v0.6.4.zip'))
+# Game files (DEVOUR.exe, DEVOUR_Data, ...) are never touched.
+function Get-Existing($paths) { return @($paths | Where-Object { $_ -and (Test-Path -LiteralPath $_) }) }
 
-$found = @($targets | Where-Object { Test-Path -LiteralPath $_ })
+# 1) DevourClient itself: always removed
+$modTargets = @(Get-ChildItem -LiteralPath (Join-Path $Game 'Mods') -Filter 'DevourClient*.dll' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+$modTargets += Join-Path $Game 'UserData\DevourClient_MenuKey.txt'
+foreach ($n in '.dotnet', 'DevourClient\bin', 'DevourClient\obj') { $modTargets += Join-Path $Root $n }
+$modTargets += Join-Path $env:TEMP 'dotnet-install.ps1'
+$found = Get-Existing $modTargets
+
+Write-Host ''
+if ($found.Count -gt 0) {
+    Write-Host 'DevourClient files that will be deleted:' -ForegroundColor Yellow
+    $found | ForEach-Object { Write-Host "    $_" }
+} else {
+    Write-Host 'DevourClient is not installed.' -ForegroundColor Green
+}
+
+# 2) MelonLoader: only if the player says yes
+$mlTargets = @()
+foreach ($n in 'MelonLoader', 'Mods', 'Plugins', 'UserData', 'UserLibs', 'version.dll', 'version.dll.off', 'dobby.dll') { $mlTargets += Join-Path $Game $n }
+$mlTargets += @(Get-ChildItem -LiteralPath $Game -Directory -Filter 'MelonLoader.backup-*' -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+$notice = Join-Path $Game 'NOTICE.txt'   # shipped by MelonLoader; only removed if it's MelonLoader's
+if ((Test-Path -LiteralPath $notice) -and ((Get-Content -LiteralPath $notice -Raw) -match 'MelonLoader')) { $mlTargets += $notice }
+$mlTargets += Join-Path $env:TEMP 'MelonLoader.x64.v0.6.4.zip'
+$mlFound = Get-Existing $mlTargets
+
+if ($mlFound.Count -gt 0) {
+    Write-Host ''
+    Write-Host 'MelonLoader is also installed (the mod loader DevourClient runs on).'
+    Write-Host '    Removing it also deletes Mods, Plugins and UserData, so ANY other MelonLoader mods you have are deleted too.' -ForegroundColor Yellow
+    $ans = Read-Host 'Also remove MelonLoader? (Y/N)'
+    if ($ans -match '^\s*y') { $found = @(@($found) + $mlFound | Select-Object -Unique) }
+}
+
 if ($found.Count -eq 0) {
     Write-Host ''
-    Write-Host 'Nothing to remove, DevourClient and MelonLoader are not installed.' -ForegroundColor Green
+    Write-Host 'Nothing to remove.' -ForegroundColor Green
     if ($Elevated) { Read-Host 'Press Enter to close' | Out-Null }
     exit 0
 }
 
 Write-Host ''
-Write-Host 'This will permanently delete:' -ForegroundColor Yellow
+Write-Host 'Final list, these will be permanently deleted:' -ForegroundColor Yellow
 $found | ForEach-Object { Write-Host "    $_" }
-Write-Host ''
-Write-Host '    WARNING: Mods, Plugins and UserData also hold any OTHER MelonLoader mods you installed.' -ForegroundColor Yellow
-Write-Host '    Your DEVOUR game files and save progress (stored by Steam) are not touched.'
+Write-Host '    Your DEVOUR game files and progress are not touched.'
 Write-Host ''
 if ((Read-Host 'Type YES to uninstall') -ne 'YES') { Fail 'Cancelled, nothing was deleted.' }
 
@@ -91,7 +111,7 @@ foreach ($t in $found) {
 
 Write-Host ''
 if ($failed -gt 0) { Fail "$failed item(s) could not be deleted (file in use?). Close DEVOUR/Steam and run uninstall.bat again." }
-Write-Host 'Uninstalled. DEVOUR is back to normal.' -ForegroundColor Green
+Write-Host 'Uninstalled.' -ForegroundColor Green
 Write-Host 'You can now delete this DevourClient folder too. If the game acts up, use Steam > DEVOUR > Properties > Installed Files > Verify integrity.'
 if ($Elevated) { Read-Host 'Press Enter to close' | Out-Null }
 exit 0
