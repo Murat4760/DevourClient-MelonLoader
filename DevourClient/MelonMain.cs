@@ -22,6 +22,7 @@ namespace DevourClient
         public static GameObject DevourClientGO { get; private set; } = default!;
         public static void Init()
         {
+            Settings.Settings.LoadMenuKey();
             ClassInjector.RegisterTypeInIl2Cpp<ClientMain>();
 
             DevourClientGO = new GameObject("DevourClient");

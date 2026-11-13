@@ -41,36 +41,7 @@ function Download($url, $dest) {
 }
 
 # ---------------------------------------------------------------- 1. find DEVOUR
-function Test-DevourDir($dir) { return ($dir -and (Test-Path -LiteralPath (Join-Path $dir 'DEVOUR.exe'))) }
-
-function Find-Devour {
-    $libs = New-Object System.Collections.Generic.List[string]
-    foreach ($key in 'HKCU:\Software\Valve\Steam', 'HKLM:\SOFTWARE\WOW6432Node\Valve\Steam', 'HKLM:\SOFTWARE\Valve\Steam') {
-        try {
-            $p = Get-ItemProperty -Path $key -ErrorAction Stop
-            foreach ($v in @($p.SteamPath, $p.InstallPath)) { if ($v) { $libs.Add(($v -replace '/', '\')) } }
-        } catch {}
-    }
-    foreach ($steam in @($libs)) {
-        $vdf = Join-Path $steam 'steamapps\libraryfolders.vdf'
-        if (Test-Path -LiteralPath $vdf) {
-            foreach ($m in [regex]::Matches((Get-Content -LiteralPath $vdf -Raw), '"path"\s+"([^"]+)"')) {
-                $libs.Add(($m.Groups[1].Value -replace '\\\\', '\'))
-            }
-        }
-    }
-    foreach ($drive in [IO.DriveInfo]::GetDrives()) {
-        if ($drive.DriveType -ne 'Fixed' -or -not $drive.IsReady) { continue }
-        foreach ($sub in 'SteamLibrary', 'Steam', 'Games\Steam', 'Games\SteamLibrary', 'Program Files (x86)\Steam', 'Program Files\Steam') {
-            $libs.Add((Join-Path $drive.RootDirectory.FullName $sub))
-        }
-    }
-    foreach ($lib in ($libs | Select-Object -Unique)) {
-        $game = Join-Path $lib 'steamapps\common\Devour'
-        if (Test-DevourDir $game) { return (Resolve-Path -LiteralPath $game).Path }
-    }
-    return $null
-}
+. (Join-Path $PSScriptRoot 'find-devour.ps1')
 
 Step 'Looking for DEVOUR'
 if ($DevourPath) { $DevourPath = $DevourPath.Trim('"', ' ') }
@@ -173,6 +144,51 @@ foreach ($d in 'Mods', 'Plugins', 'UserData', 'UserLibs') {
     if (-not (Test-Path -LiteralPath $p)) { New-Item -ItemType Directory -Path $p | Out-Null }
 }
 
+# ---------------------------------------------------------------- 3b. menu key
+Step 'Choosing the key that opens the menu'
+$KeyFile = Join-Path $Game 'UserData\DevourClient_MenuKey.txt'
+$MenuKey = 'Insert'
+if (Test-Path -LiteralPath $KeyFile) {
+    $saved = (Get-Content -LiteralPath $KeyFile -Raw -ErrorAction SilentlyContinue)
+    if ($saved -and $saved.Trim()) { $MenuKey = $saved.Trim() }
+}
+
+# Console key name -> Unity KeyCode name (the mod reads the Unity name)
+function ConvertTo-UnityKey([ConsoleKey]$k) {
+    $n = $k.ToString()
+    if ($n -match '^D(\d)$')      { return "Alpha$($Matches[1])" }
+    if ($n -match '^NumPad(\d)$') { return "Keypad$($Matches[1])" }
+    if ($n -match '^([A-Z]|F\d{1,2})$') { return $n }
+    switch ($n) {
+        'Multiply' { return 'KeypadMultiply' }
+        'Add'      { return 'KeypadPlus' }
+        'Subtract' { return 'KeypadMinus' }
+        'Divide'   { return 'KeypadDivide' }
+        'Decimal'  { return 'KeypadPeriod' }
+    }
+    if ($n -in 'Insert', 'Delete', 'Home', 'End', 'PageUp', 'PageDown', 'UpArrow', 'DownArrow', 'LeftArrow', 'RightArrow', 'Tab', 'Backspace', 'Pause') { return $n }
+    return $null
+}
+
+# Keys the game or the menu already uses
+$Blocked = @('Escape', 'Spacebar', 'Alpha1', 'Alpha2', 'Alpha3', 'Alpha4', 'Alpha5', 'Alpha6', 'Alpha7')
+
+Info "Current menu key: $MenuKey"
+Info 'Press the key you want to open the menu with, or press Enter to keep it.'
+while ($true) {
+    $press = [Console]::ReadKey($true)
+    if ($press.Key -eq 'Enter') { break }
+    $unity = ConvertTo-UnityKey $press.Key
+    if (-not $unity -or $Blocked -contains $unity -or $Blocked -contains $press.Key.ToString()) {
+        Write-Host "    '$($press.Key)' can't be used (unsupported, or already used by the game/menu). Press another key." -ForegroundColor Yellow
+        continue
+    }
+    $MenuKey = $unity
+    break
+}
+Set-Content -LiteralPath $KeyFile -Value $MenuKey -Encoding ASCII
+Ok "Menu key: $MenuKey (run build.bat again to change it)"
+
 # ---------------------------------------------------------------- 4. first launch to generate game assemblies
 $AsmCSharp = Join-Path $MLDir 'Il2CppAssemblies\Assembly-CSharp.dll'
 if (-not (Test-Path -LiteralPath $AsmCSharp)) {
@@ -216,7 +232,8 @@ Copy-Item -LiteralPath $built -Destination (Join-Path $Game 'Mods\DevourClient.d
 Ok "Installed to $(Join-Path $Game 'Mods\DevourClient.dll')"
 
 Write-Host ''
-Write-Host 'All done! Start DEVOUR from Steam and press INSERT to open the menu.' -ForegroundColor Green
+Write-Host "All done! Start DEVOUR from Steam and press $MenuKey to open the menu." -ForegroundColor Green
+Write-Host '  Something not working? Double-click check.bat for a diagnosis.'
 Write-Host '  Visuals tab: Unlimited UV Light    Misc tab: Auto Respawn'
 if ($Elevated) { Read-Host 'Press Enter to close' | Out-Null }
 exit 0

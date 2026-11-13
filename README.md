@@ -17,14 +17,25 @@ That's all. `build.bat` handles the rest:
 - Finds DEVOUR through Steam, in any library or on any drive. If it can't find the game, it asks you for the folder.
 - Installs the .NET 6 SDK into the project folder if you don't have one. This happens once, takes about 200 MB, and doesn't need admin.
 - Installs **MelonLoader v0.6.4** into DEVOUR, or switches it back on if it was turned off (`version.dll.off`).
+- Asks which key should open the menu: just press it (Enter keeps the current key, default **INSERT**). Run `build.bat` again any time to change it.
 - On the very first run, starts DEVOUR once so MelonLoader can prepare the game files (about 2–10 minutes), then closes the game.
 - Builds `DevourClient.dll` and copies it into `DEVOUR\Mods`.
 
-When it says **All done**, start DEVOUR from Steam and press **INSERT** to open the menu. Unlimited UV Light is in the Visuals tab, and Auto Respawn is in the Misc tab.
+When it says **All done**, start DEVOUR from Steam and press the key you picked (default **INSERT**) to open the menu. Unlimited UV Light is in the Visuals tab, and Auto Respawn is in the Misc tab.
 
 Windows may show a "Windows protected your PC" warning for a downloaded `.bat`. Click **More info → Run anyway**.
 
 If DEVOUR is somewhere unusual, you can drag the DEVOUR folder onto `build.bat`, or run `build.bat "D:\path\to\Devour"`.
+
+## Something not working? (`check.bat`)
+Double-click **`check.bat`**. It changes nothing; it checks MelonLoader, the game files, the mod DLL, your menu key and the last game log, then tells you exactly what's wrong and how to fix it.
+
+## Uninstall (`uninstall.bat`)
+Double-click **`uninstall.bat`**. It lists everything it will delete and only continues if you type `YES`. It removes:
+- From DEVOUR: `MelonLoader`, `Mods`, `Plugins`, `UserData`, `UserLibs`, `version.dll`, `version.dll.off`, `dobby.dll`, MelonLoader's `NOTICE.txt` and old `MelonLoader.backup-*` folders. **This also removes any other MelonLoader mods you had.**
+- From this folder: the local .NET SDK (`.dotnet`) and build output.
+
+Your game files and progress aren't touched. Afterwards you can delete this folder.
 
 Host-only features (spawning, map changes, Kill, Force Start) still need you to be the lobby owner. Please don't use the mod to ruin other people's games in public lobbies.
 
@@ -116,6 +127,8 @@ ps:有些电脑在安装melonloader之后，会出现fatal error的提示，这�
 
 
 ## Uninstallation
+
+Easiest: run `uninstall.bat` (see the top of this file). Manually:
 
 0. Delete the folders `MelonLoader`, `Mods`, `Plugins`, `UserData`, and the file `version.dll` from `C:\Program Files (x86)\Steam\steamapps\common\Devour`
 

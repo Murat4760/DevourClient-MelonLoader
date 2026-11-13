@@ -127,7 +127,7 @@ namespace DevourClient
 
         public void Update()
         {
-            if (Input.GetKeyDown(KeyCode.Insert))
+            if (Input.GetKeyDown(Settings.Settings.menuKey))
             {
                 try
                 {
