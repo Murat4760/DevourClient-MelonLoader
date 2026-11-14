@@ -192,7 +192,11 @@ namespace DevourClient.Hooks
             static void Postfix(Il2Cpp.NolanPerkController __instance)
             {
                 Il2Cpp.NolanBehaviour nb = __instance.nolanBehaviour;
-                if (nb != null && nb.entity != null && nb.entity.IsOwner) ClientMain.beingChased = true;
+                if (nb != null && nb.entity != null && nb.entity.IsOwner)
+                {
+                    ClientMain.beingChased = true;
+                    Hacks.Misc.SetChasePerkStates(nb, true);
+                }
             }
         }
 
@@ -202,7 +206,11 @@ namespace DevourClient.Hooks
             static void Postfix(Il2Cpp.NolanPerkController __instance)
             {
                 Il2Cpp.NolanBehaviour nb = __instance.nolanBehaviour;
-                if (nb != null && nb.entity != null && nb.entity.IsOwner) ClientMain.beingChased = false;
+                if (nb != null && nb.entity != null && nb.entity.IsOwner)
+                {
+                    ClientMain.beingChased = false;
+                    Hacks.Misc.SetChasePerkStates(nb, false);
+                }
             }
         }
 

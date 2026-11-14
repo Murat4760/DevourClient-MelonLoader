@@ -377,9 +377,25 @@ namespace DevourClient.Hacks
 			if (on) ClientMain.extraPerks.Add(key); else ClientMain.extraPerks.Remove(key);
 
 			Il2Cpp.NolanBehaviour nb = Player.GetPlayer();
-			if (nb != null)
+			if (nb != null && !IsChaseOnlyPerk(key))
 			{
 				SetPerkState(nb, perkId, on);
+			}
+			else if (nb != null && !on)
+			{
+				SetPerkState(nb, perkId, false);
+			}
+		}
+
+		// Perks whose state must only be on while Azazel is chasing you (switched by the pursue hooks), never permanently.
+		public static bool IsChaseOnlyPerk(string key) => key == "EVADER";
+
+		// Called from the game's pursue start/stop events for the local player.
+		public static void SetChasePerkStates(Il2Cpp.NolanBehaviour nb, bool chased)
+		{
+			foreach (string key in ClientMain.extraPerks)
+			{
+				if (IsChaseOnlyPerk(key)) SetPerkState(nb, "PERK_" + key, chased);
 			}
 		}
 
@@ -402,31 +418,14 @@ namespace DevourClient.Hacks
 		{
 			foreach (string key in ClientMain.extraPerks)
 			{
-				SetPerkState(nb, "PERK_" + key, true);
+				SetPerkState(nb, "PERK_" + key, !IsChaseOnlyPerk(key)); // chase-only perks start off
 			}
 		}
 
-		// The game's own pursue events, with Azazel being close by as a fallback in case they don't reach this player.
+		// Only the game's own pursue start/stop events count. Azazel merely being nearby is not a chase.
 		public static bool IsBeingChased(Il2Cpp.NolanBehaviour nb)
 		{
-			if (ClientMain.beingChased)
-			{
-				return true;
-			}
-
-			if (Helpers.Entities.Azazels == null)
-			{
-				return false;
-			}
-
-			foreach (Il2Cpp.SurvivalAzazelBehaviour azazel in Helpers.Entities.Azazels)
-			{
-				if (azazel != null && Vector3.Distance(azazel.transform.position, nb.transform.position) < 8f)
-				{
-					return true;
-				}
-			}
-			return false;
+			return ClientMain.beingChased;
 		}
 
 		// The game's input re-locks the mouse on click unless told not to, which swallowed clicks on the menu.

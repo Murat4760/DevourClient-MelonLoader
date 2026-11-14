@@ -170,6 +170,7 @@ namespace DevourClient
                 if (me != null && me.GetInstanceID() != perksAppliedFor)
                 {
                     perksAppliedFor = me.GetInstanceID();
+                    beingChased = false; // new character/match: a chase from last round must not carry over
                     Hacks.Misc.ApplyExtraPerkStates(me);
                 }
 
